@@ -1,0 +1,72 @@
+# Signal weights and configuration
+# Each rule adds points to the score and a human-readable reason
+
+categories:
+  buy_candidate_min: 60
+  buy_watch_min: 35
+  sell_review_max: 25
+  neutral_min: 25
+  neutral_max: 35
+
+confidence_tiers:
+  high_min: 70
+  medium_min: 40
+  low_min: 0
+
+rules:
+  - id: ema_trend_bullish
+    description: "Price above EMA20 and EMA20 above EMA50 (bullish trend)"
+    weight: 15
+    category: bullish
+  - id: rsi_reversal_up
+    description: "RSI crossed up from below 30 (reversal signal)"
+    weight: 12
+    category: bullish
+  - id: macd_crossover_up
+    description: "MACD line crossed above signal line"
+    weight: 10
+    category: bullish
+  - id: high_relative_volume
+    description: "Relative volume > 1.5x 20-day average"
+    weight: 8
+    category: bullish
+  - id: near_support
+    description: "Price within 2% of a support zone"
+    weight: 7
+    category: bullish
+  - id: near_52w_low
+    description: "Price within 10% of 52-week low"
+    weight: 5
+    category: bullish
+  - id: fundamentals_present
+    description: "Fundamental data available"
+    weight: 5
+    category: fundamental
+
+risk_flags:
+  - id: low_liquidity
+    description: "Average turnover below configured threshold"
+  - id: near_resistance
+    description: "Price within 2% of resistance zone"
+  - id: extended_above_ema
+    description: "Price more than 5% above EMA20 (overextended)"
+  - id: unadjusted_gap
+    description: "Recent suspicious jump without corporate action event"
+  - id: stale_fundamentals
+    description: "Fundamentals data older than 365 days"
+  - id: circuit_limit_move
+    description: "Daily move at or beyond circuit limit (+/- 10%)"
+
+weights:
+  ema_trend_bullish: 15
+  rsi_reversal_up: 12
+  macd_crossover_up: 10
+  high_relative_volume: 8
+  near_support: 7
+  near_52w_low: 5
+  fundamentals_present: 5
+  ema_trend_bearish: -15
+  rsi_reversal_down: -12
+  macd_crossover_down: -10
+  near_resistance: -7
+  extended_above_ema: -5
