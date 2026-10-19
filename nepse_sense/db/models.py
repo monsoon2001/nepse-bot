@@ -122,15 +122,38 @@ class Event(Base):
 
 class News(Base):
     __tablename__ = "news"
+    __table_args__ = (
+        UniqueConstraint("headline_key", name="uq_news_headline_key"),
+    )
 
     id = Column(Integer, primary_key=True)
     symbol = Column(String(20), index=True)
     date = Column(Date, nullable=False, index=True)
     title = Column(String(500))
-    content = Column(Text)
+    content = Column(Text)  # kept empty: we store headline + link only
     source = Column(String(100))
     impact_score = Column(Float, default=0.0)
+    url = Column(String(1000))
+    published_at = Column(DateTime, index=True)  # UTC
+    headline_key = Column(String(64), index=True)  # dedupe key (normalized + date)
+    alt_sources = Column(JSON)  # other sources that carried the same story
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class NewsBriefing(Base):
+    """Cursor for 'news since the last successful briefing'."""
+
+    __tablename__ = "news_briefings"
+
+    id = Column(Integer, primary_key=True)
+    kind = Column(String(30), default="premarket")  # premarket | urgent
+    sent_at = Column(DateTime, default=datetime.utcnow, index=True)  # UTC
+    status = Column(String(20))  # success | failed
+    window_start = Column(DateTime)
+    item_count = Column(Integer, default=0)
+    event_count = Column(Integer, default=0)
+    delivered_to = Column(Integer, default=0)
+    details = Column(JSON)
 
 
 class Signal(Base):
@@ -257,4 +280,23 @@ class DataQualityIssue(Base):
     details = Column(JSON)
     source = Column(String(50))
     resolved = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class IndexDaily(Base):
+    """NEPSE / sector index daily closes (e.g. from the MeroLagani adapter)."""
+
+    __tablename__ = "index_daily"
+    __table_args__ = (
+        UniqueConstraint("index_name", "day", "source", name="uq_index_daily"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    index_name = Column(String(100), nullable=False, index=True)
+    day = Column(Date, nullable=False, index=True)
+    value = Column(Float, nullable=False)
+    change = Column(Float)
+    pct_change = Column(Float)
+    source = Column(String(50), nullable=False)
+    fetched_at = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)

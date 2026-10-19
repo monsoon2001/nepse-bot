@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date, datetime
 
 import yaml
 
@@ -79,11 +79,14 @@ class SignalEngine:
         return count >= min_bars
 
     def _is_stale(self, dt: date, current_date: date) -> bool:
-        if current_date.weekday() in (0, 1, 2, 3):  # Mon-Thu approx check
-            last_expected = current_date
-        else:
-            last_expected = current_date
-        return dt < last_expected - timedelta(days=3)
+        """True if data `dt` is older than the last expected trading day."""
+        from nepse_sense.clock import MarketClock
+
+        clock = MarketClock()
+        now = datetime.combine(current_date, clock.session_close).replace(
+            tzinfo=clock.timezone
+        )
+        return dt < clock.last_expected_trading_day(now)
 
     def evaluate_symbol(self, symbol: str, dt: date) -> SignalResult | None:
         # Check gating conditions first

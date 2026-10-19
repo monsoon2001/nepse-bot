@@ -28,7 +28,8 @@ def format_report(result: BacktestResult) -> str:
         lines.append("")
         lines.extend(_stat_block("In-sample", result.in_sample_stats))
     lines.append("")
-    lines.append(f"Buy & hold return: {result.buy_hold_return:.2f}%")
+    label = result.benchmark_label or "benchmark"
+    lines.append(f"Buy & hold return ({label}): {result.buy_hold_return:.2f}%")
     lines.append(
         "\n<i>Costs are configurable defaults — verify current NEPSE/SEBON rates. "
         "Educational analysis, not financial advice.</i>"

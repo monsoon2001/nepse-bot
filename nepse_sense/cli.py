@@ -105,5 +105,42 @@ def doctor():
     run_doctor()
 
 
+@app.command(name="index-sync")
+def index_sync(index_name: str = typer.Option("NEPSE", help="Index name")):
+    """Fetch the latest NEPSE/sector index slice and store it.
+
+    Disabled unless ENABLE_MEROLAGANI=true. Automated access is prohibited by
+    the source's Terms of Service (docs/DATA_SOURCES.md §8) — prefer
+    import-index-csv.
+    """
+    from nepse_sense.indexing.service import sync_latest_index
+
+    result = sync_latest_index(index_name=index_name)
+    typer.echo(f"index-sync [{index_name}]: {result['status']} — {result['detail']}")
+    if result["status"] == "disabled":
+        typer.echo(
+            "Automated fetching is off. Import a CSV instead:\n"
+            "  nepse_sense import-index-csv <file.csv> --index-name NEPSE"
+        )
+
+
+@app.command(name="import-index-csv")
+def import_index_csv_cmd(
+    file: str,
+    index_name: str = typer.Option("NEPSE", help="Index name"),
+    source: str = typer.Option("csv", help="Source label for imported rows"),
+):
+    """Import index history from CSV (columns: date,value[,change,pct_change])."""
+    from nepse_sense.db.engine import SessionLocal
+    from nepse_sense.indexing.service import import_index_csv
+
+    db = SessionLocal()
+    try:
+        count = import_index_csv(db, file, index_name=index_name, source=source)
+        typer.echo(f"Imported {count} index rows for {index_name}")
+    finally:
+        db.close()
+
+
 if __name__ == "__main__":
     app()

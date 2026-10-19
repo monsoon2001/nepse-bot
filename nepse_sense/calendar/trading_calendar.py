@@ -9,10 +9,15 @@ class TradingCalendar:
         self.timezone = settings.timezone
 
     def is_trading_day(self, dt: date) -> bool:
-        wd = dt.isoweekday()
-        if wd in (1, 2, 3, 4, 7):
-            return not self.is_holiday(dt)
-        return False
+        # Config-driven (TRADING_DAYS, Python weekday Mon=0..Sun=6). Default is
+        # Mon-Fri; historical NEPSE was Sun-Thu — VERIFY and set TRADING_DAYS.
+        return dt.weekday() in self.trading_days and not self.is_holiday(dt)
+
+    @property
+    def trading_days(self) -> set[int]:
+        from nepse_sense.config import settings as _s
+
+        return set(_s.trading_days)
 
     def is_holiday(self, dt: date) -> bool:
         try:

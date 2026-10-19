@@ -12,7 +12,15 @@ async def authorization_filter(update: Update, context: ContextTypes.DEFAULT_TYP
     if update.effective_user is None:
         return False
     if not is_authorized(update.effective_user.id):
+        from nepse_sense.logging import logger
+
+        logger.info(
+            f"Unauthorized attempt from user_id={update.effective_user.id} "
+            f"username={update.effective_user.username}"
+        )
         if update.message:
-            await update.message.reply_text("Unauthorized. Access denied.")
+            await update.message.reply_text(
+                "Unauthorized. Access denied. Your user ID has been logged."
+            )
         return False
     return True

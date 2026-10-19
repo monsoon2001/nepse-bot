@@ -48,6 +48,12 @@ python -m nepse_sense init-db
 python -m nepse_sense import-csv tests/fixtures/sample_prices.csv --import-type prices
 python -m nepse_sense import-csv tests/fixtures/sample_fundamentals.csv --import-type fundamentals
 
+# Import NEPSE / sector index history from CSV (ToS-safe manual path)
+python -m nepse_sense import-index-csv index.csv --index-name NEPSE
+
+# Fetch the latest index slice (disabled unless ENABLE_MEROLAGANI=true)
+python -m nepse_sense index-sync
+
 # Run scan (canonicalize -> indicators -> signals)
 python -m nepse_sense scan
 
@@ -66,8 +72,22 @@ python -m nepse_sense --help
 
 ### Bot Commands
 
-`/start` `/help` `/top` `/stock SYMBOL` `/market` `/status` `/report` `/chart SYMBOL`
-`/watchlist` `/add SYMBOL` `/remove SYMBOL` `/portfolio` `/brokers` `/addevent`
+`/start` `/help` `/top` `/stock SYMBOL` `/news [N|SYMBOL]` `/market` `/status` `/report` `/chart SYMBOL`
+`/watchlist` `/add SYMBOL` `/remove SYMBOL` `/portfolio` `/brokers` `/addevent` `/profile`
+
+### News & Briefings
+
+- **Pre-market briefing** (10:00 NPT, on configured trading days, market holidays
+  skipped): today's events and deadlines plus news since the last successful briefing —
+  impact-ranked, watchlist stocks first, max 10 items (headline, source, published time,
+  link only; no article text).
+- **`/news`** — news since last market close; `/news 3` — last 3 days (max 7);
+  `/news SYMBOL` — one stock. Paginated.
+- **Urgent watchlist alerts** — opt-in (default OFF, toggle in `/profile`): during market
+  hours, high-impact news about your watchlist stocks is pushed immediately.
+- **Sources**: RSS only, robots.txt-checked at runtime. Default feed: OnlineKhabar
+  (see `docs/DATA_SOURCES.md` §7). Set `NEWS_FEED_URLS=` (empty) to disable; the briefing
+  then says explicitly that no permitted source is enabled.
 
 ### Demo Mode
 
@@ -79,6 +99,25 @@ python -m nepse_sense --help
 - `config/signals.yaml` — signal weights, category thresholds, confidence tiers.
 - `config/holidays.csv` — NEPSE holiday calendar.
 - Environment variables control source toggles, tolerances, circuit limits, and more (see `.env.example` and `nepse_sense/config.py`).
+
+### Trading calendar & market session
+
+All scheduling, staleness, briefing and look-back logic is driven by `MarketClock`
+(`nepse_sense/clock.py`) and config — nothing hardcodes a weekday:
+
+- `TRADING_DAYS` — Python weekday numbers Mon=0..Sun=6 or names (`0,1,2,3,4` or
+  `sun,mon,tue,wed,thu`). **Default Mon–Fri** (inferred from observed index dates;
+  UNVERIFIED against NEPSE — see `docs/ASSUMPTIONS.md`).
+- `SESSION_OPEN` / `SESSION_CLOSE` — market hours (default 11:00 / 15:00 NPT).
+- `DATA_GRACE_MINUTES` — post-close grace before today's data is expected (default 30).
+
+`/status` and `doctor` warn when stored prices disagree with `TRADING_DAYS`.
+
+### Index data (MeroLagani)
+
+`ENABLE_MEROLAGANI=false` by default — the site's Terms of Service prohibit automated
+collection (see `docs/DATA_SOURCES.md` §8). Use `import-index-csv` for a ToS-safe manual
+path; `index-sync` only fetches when explicitly enabled.
 
 ## Data Sources
 

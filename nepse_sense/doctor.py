@@ -64,6 +64,7 @@ def run_doctor():
             "source_health",
             "scan_runs",
             "data_quality_issues",
+            "index_daily",
         ]
         missing = set(required_tables) - set(tables)
         if missing:
@@ -89,6 +90,54 @@ def run_doctor():
     cache_dir = settings.cache_dir
     checks.append(("Data directory", "PASS" if data_dir.exists() else "FAIL - missing"))
     checks.append(("Cache directory", "PASS" if cache_dir.exists() else "FAIL - missing"))
+
+    # Calendar: trading-day config vs stored price data
+    try:
+        from nepse_sense.clock import MarketClock
+
+        clock = MarketClock()
+        day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        days = ",".join(day_names[d] for d in sorted(clock.trading_days))
+        mismatches = clock.weekday_mismatch()
+        if mismatches:
+            checks.append(
+                ("Calendar (TRADING_DAYS)", f"WARN - {days}; " + "; ".join(mismatches))
+            )
+        else:
+            checks.append(("Calendar (TRADING_DAYS)", f"PASS - {days}"))
+    except Exception as e:
+        checks.append(("Calendar (TRADING_DAYS)", f"FAIL - {e}"))
+
+    # Index source (MeroLagani) config + data freshness
+    try:
+        from datetime import date as _date
+
+        if not settings.enable_merolagani:
+            checks.append(
+                (
+                    "Index source (MeroLagani)",
+                    "WARN - disabled (ENABLE_MEROLAGANI=false); see DATA_SOURCES.md s8",
+                )
+            )
+        else:
+            with engine.connect() as conn:
+                res = conn.execute(
+                    text("SELECT MAX(day) FROM index_daily WHERE source='merolagani'")
+                )
+                last = res.scalar()
+            if last is None:
+                checks.append(
+                    ("Index source (MeroLagani)", "WARN - enabled but no data imported yet")
+                )
+            else:
+                stale_days = (_date.today() - last).days
+                if stale_days <= 4:
+                    status = "PASS"
+                else:
+                    status = f"WARN - last data {stale_days}d old ({last})"
+                checks.append(("Index source (MeroLagani)", status))
+    except Exception as e:
+        checks.append(("Index source (MeroLagani)", f"FAIL - {e}"))
 
     # Display table
     for name, status in checks:

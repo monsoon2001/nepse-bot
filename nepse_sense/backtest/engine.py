@@ -29,6 +29,7 @@ class BacktestResult:
     profit_factor: float = 0.0
     total_return: float = 0.0
     buy_hold_return: float = 0.0
+    benchmark_label: str = ""  # e.g. "NEPSE index" or "single-stock approx"
     in_sample_stats: dict = field(default_factory=dict)
     out_sample_stats: dict = field(default_factory=dict)
 
@@ -70,6 +71,28 @@ class Backtester:
             .first()
         )
         return nxt[0] if nxt else None
+
+    def _index_return(
+        self, start: date, end: date, index_name: str = "NEPSE"
+    ) -> float | None:
+        """Index buy-&-hold return (%) over [start, end], or None if no data."""
+        from nepse_sense.db.models import IndexDaily
+
+        first = (
+            self.db.query(IndexDaily)
+            .filter(IndexDaily.index_name == index_name, IndexDaily.day >= start)
+            .order_by(IndexDaily.day.asc())
+            .first()
+        )
+        last = (
+            self.db.query(IndexDaily)
+            .filter(IndexDaily.index_name == index_name, IndexDaily.day <= end)
+            .order_by(IndexDaily.day.desc())
+            .first()
+        )
+        if first and last and first.value:
+            return (last.value - first.value) / first.value * 100
+        return None
 
     def run(
         self,
@@ -142,15 +165,26 @@ class Backtester:
             result.profit_factor = result.in_sample_stats["profit_factor"]
             result.total_return = result.in_sample_stats["total_return"]
             result.max_drawdown = result.in_sample_stats["max_drawdown"]
-            # buy & hold approx: first symbol entry to last close
+            # Benchmark: prefer the NEPSE index over the same window; fall back
+            # to a single-stock approximation when no index data is stored.
             first = closed[0]
             last = closed[-1]
-            bh_entry = self._get_price(first.symbol, first.entry_date)
-            bh_exit = self._get_price(last.symbol, last.exit_date) if last.exit_date else None
-            if bh_entry and bh_entry.close and bh_exit and bh_exit.close:
-                result.buy_hold_return = (
-                    (bh_exit.close - bh_entry.close) / bh_entry.close * 100
+            period_start = first.entry_date
+            period_end = last.exit_date or last.entry_date
+            index_ret = self._index_return(period_start, period_end)
+            if index_ret is not None:
+                result.buy_hold_return = index_ret
+                result.benchmark_label = "NEPSE index"
+            else:
+                bh_entry = self._get_price(first.symbol, first.entry_date)
+                bh_exit = (
+                    self._get_price(last.symbol, last.exit_date) if last.exit_date else None
                 )
+                if bh_entry and bh_entry.close and bh_exit and bh_exit.close:
+                    result.buy_hold_return = (
+                        (bh_exit.close - bh_entry.close) / bh_entry.close * 100
+                    )
+                    result.benchmark_label = "single-stock approx"
         return result
 
     def _compute_stats(self, trades: list[Trade]) -> dict:
