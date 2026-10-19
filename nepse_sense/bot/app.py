@@ -37,11 +37,15 @@ BOT_COMMANDS = [
     BotCommand("chart", "📉 Price chart — /chart SYMBOL"),
     BotCommand("news", "📰 News since last close — /news [N|SYMBOL]"),
     BotCommand("market", "🌐 Market overview"),
-    BotCommand("watchlist", "👁 Your watchlist"),
-    BotCommand("portfolio", "💼 Your holdings & P/L"),
-    BotCommand("profile", "👤 Profile & alert settings"),
     BotCommand("status", "🧭 System status"),
     BotCommand("report", "📋 Backtest report"),
+    BotCommand("brokers", "🏦 Broker data (unavailable in v1)"),
+    BotCommand("watchlist", "👁 Your watchlist"),
+    BotCommand("add", "➕ Add to watchlist — /add SYMBOL"),
+    BotCommand("remove", "➖ Remove from watchlist — /remove SYMBOL"),
+    BotCommand("portfolio", "💼 Your holdings & P/L"),
+    BotCommand("profile", "👤 Profile & alert settings"),
+    BotCommand("addevent", "🛠 Log a corporate event — /addevent SYMBOL DATE TYPE [desc]"),
     BotCommand("help", "❓ All commands"),
 ]
 
